@@ -1,0 +1,20 @@
+# nokogiriのconfig変更する
+- name: bundle set config nokogiri
+  sudo: false
+  command: bash -lc "bundle config build.nokogiri --use-system-libraries"
+  tags:
+    - deploy
+    - bundle
+
+- name: bundle install
+  sudo_user: vagrant
+  command:
+    bash -lc "bundle install --jobs=4 --path=vendor/bundle --binstubs=vendor/bin --without test development"
+    chdir={{ work_dir }}
+  tags:
+    - deploy
+    - bundle
+
+- name: set rails logrotate
+  template: src=rails_logrotate.j2 dest=/etc/logrotate.d/rails owner=root mode=0644
+  tags: rails

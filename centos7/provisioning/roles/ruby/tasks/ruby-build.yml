@@ -1,0 +1,47 @@
+- name: create shims dir
+  sudo: yes
+  file: path={{ rbenv_root }}/shims state=directory
+  tags:
+    - ruby
+    - ruby-build
+
+- name: create plugins dir
+  sudo: yes
+  file: path={{ rbenv_root }}/plugins state=directory
+  tags:
+    - ruby
+    - ruby-build
+
+- name: create versions dir
+  sudo: yes
+  file: path={{ rbenv_root }}/versions state=directory
+  tags:
+    - ruby
+    - ruby-build
+
+- name: change owner of install dir
+  sudo: yes
+  command: chgrp -R rbenv {{ rbenv_root }}
+  tags:
+    - ruby
+    - ruby-build
+
+- name: change mode of install dir
+  sudo: yes
+  command: chmod -R g+rwxX {{ rbenv_root }}
+  tags:
+    - ruby
+    - ruby-build
+
+- name: Set rbenv env file
+  sudo: yes
+  copy: src=rbenv.sh dest=/etc/profile.d mode=0775
+  tags:
+    - ruby
+    - ruby-build
+
+- name: git clone https://github.com/sstephenson/ruby-build.git
+  git: repo=https://github.com/sstephenson/ruby-build.git dest={{ rbenv_root }}/plugins/ruby-build
+  tags:
+    - ruby
+    - ruby-build

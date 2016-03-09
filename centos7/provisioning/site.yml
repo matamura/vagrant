@@ -1,0 +1,12 @@
+- name: setting rails to server
+  hosts: dev_server
+  user: vagrant
+  sudo: yes
+  roles:
+    - common
+    - memcached
+    - ruby
+    - mysql
+    - redis
+    - deploy
+    - nginx

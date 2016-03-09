@@ -1,0 +1,20 @@
+---
+- name: install memcached
+  yum: name={{ item }} enablerepo=epel state=present
+  with_items:
+    - memcached
+  sudo: true
+  tags:
+    - memcached
+
+
+- name: Update config
+  template: src=memcached.conf.j2 dest=/etc/sysconfig/memcached owner=root group=root mode=0644
+  notify: restart memcached
+  tags:
+    - memcached
+
+- name: Start and enable service
+  service: name=memcached state={{ 'started' if memcached_start else 'stopped' }} enabled={{ 'yes' if memcached_start_on_boot else 'no' }}
+  tags:
+    - memcached

@@ -1,0 +1,87 @@
+- name: Install Mysql repository
+  yum: name=http://dev.mysql.com/get/mysql-community-release-el7-5.noarch.rpm state=present
+
+- name: install MySQL
+  yum: name={{ item }} state=present
+  with_items:
+    - mysql
+    - mysql-server
+    - mysql-devel
+    - MySQL-python
+  sudo: true
+  tags:
+    - mysql
+    - install
+
+
+- name: check my.cnf exist
+  sudo: false
+  stat: path=/etc/my.cnf
+  register: myconf_exist
+  tags:
+    - mysql
+    - install
+
+- name: copy my.cnf
+  template: src=my.cnf.j2 dest=/etc/my.cnf owner=root mode=0744
+  when: myconf_exist.stat.exists == false
+  tags:
+    - mysql
+    - install
+
+
+- name: Start MySQL service
+  service:
+    name: mysqld
+    state: started
+    enabled: yes
+  sudo: yes
+  when: myconf_exist.stat.exists == false
+  tags:
+    - mysql
+    - install
+
+- name: root passwrd udpate
+  command: mysqladmin -u root password {{ root_db_password }}
+  when: myconf_exist.stat.exists == false
+  tags:
+    - mysql
+    - install
+
+- name: copy /root/.my.cnf
+  template: src=root_my_cnf.j2 dest=/root/.my.cnf owner=root mode=0600
+  when: myconf_exist.stat.exists == false
+  tags:
+    - mysql
+    - install
+
+- name: create root user
+  mysql_user:
+    name: root
+    host: localhost
+    password: "{{ root_db_password }}"
+  when: myconf_exist.stat.exists == false
+  tags:
+    - mysql
+    - install
+
+- name: setup mysql database
+  mysql_db:
+    name: to_{{ environtment }}
+    state: present
+  when: myconf_exist.stat.exists == false
+  tags:
+    - mysql
+    - install
+
+- name: create to user
+  mysql_user:
+    name: to
+    password: "{{ to_db_password }}"
+    priv: "to_{{ environtment }}.*:ALL"
+    host: localhost
+    state: present
+  when: myconf_exist.stat.exists == false
+  tags:
+    - mysql
+    - install

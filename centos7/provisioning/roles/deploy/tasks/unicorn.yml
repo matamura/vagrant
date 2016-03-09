@@ -1,0 +1,59 @@
+- name: put unicorn.conf
+  sudo: false
+  template: src=unicorn.conf.j2 dest={{ work_dir }}/config/unicorn/vagrant.rb
+  tags:
+    - deploy
+    - unicorn
+
+- name: create working tmp dir
+  sudo: false
+  file: path={{ work_dir }}/tmp/pids state=directory
+  tags:
+    - deploy
+    - unicorn
+
+- name: create working sockets dir
+  sudo: false
+  file: path={{ work_dir }}/tmp/sockets state=directory
+  tags:
+    - deploy
+    - unicorn
+
+- name: create working log dir
+  sudo: false
+  file: path={{ work_dir }}/log state=directory
+  tags:
+    - deploy
+    - unicorn
+
+
+- name: check unicorn exist
+  sudo: false
+  stat: path={{ work_dir }}/tmp/pids/unicorn.pid
+  register: unicorn_exist
+  tags:
+    - deploy
+    - unicorn_restart
+    - unicorn
+
+- name: unicorn start
+  sudo: false
+  command:
+    bash -lc "bundle exec unicorn -c {{ work_dir }}/config/unicorn/vagrant.rb -E {{ environtment }} -D"
+    chdir={{ work_dir }}
+  when: unicorn_exist.stat.exists == false
+  tags:
+    - deploy
+    - unicorn
+
+
+- name: unicorn restart
+  sudo: false
+  command:
+    bash -lc "kill -s USR2 `cat tmp/pids/unicorn.pid`"
+    chdir={{ work_dir }}
+  when: unicorn_exist.stat.exists
+  tags:
+    - deploy
+    - unicorn_restart
+    - unicorn

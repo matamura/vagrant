@@ -1,0 +1,43 @@
+- name: create work_dir
+  sudo: yes
+  file: path={{ work_dir }} state=directory
+  tags:
+    - deploy
+    - src
+
+- name: change mode of work_dir
+  sudo: yes
+  command: chmod -R g+rwxXs {{ work_dir }}
+  tags:
+    - deploy
+    - src
+
+- name: change group of work_dir
+  sudo: yes
+  command: chgrp -R vagrant {{ work_dir }}
+  tags:
+    - deploy
+    - src
+
+- name: change owner of work_dir
+  sudo: yes
+  command: chown -R vagrant {{ work_dir }}
+  tags:
+    - deploy
+    - src
+
+
+
+
+- name: git clone/pull
+  git: repo=git@github.com:to-project/src.git dest={{ work_dir }} version=develop accept_hostkey=yes
+  sudo: false
+  tags:
+   - deploy
+    - src
+    - github
+
+
+
+
+

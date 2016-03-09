@@ -1,0 +1,15 @@
+- name: migrate_reset start
+  sudo: false
+  command:
+    bash -lc "bundle exec rake db:migrate RAILS_ENV={{ environtment }}"
+    chdir={{ work_dir }}
+  tags:
+    - db_init
+
+- name: db seed
+  sudo: false
+  command:
+    bash -lc "bundle exec rake db:seed RAILS_ENV={{ environtment }}"
+    chdir={{ work_dir }}
+  tags:
+    - db_init

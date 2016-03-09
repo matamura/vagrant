@@ -1,0 +1,30 @@
+ruby_version: 2.2.1
+rbenv_root: /usr/local/rbenv
+work_dir: /data/project
+repos_dir: "{{ work_dir }}/ansible-tut"
+branch: develop
+repo_url: git@github.com:to-project/src.git
+dest: src
+src_dir: /data/project/src
+
+colon: ':'
+redis: { version: 2.8.8 }
+
+
+root_db_password: password
+to_db_password: Ac7PPsLG6H
+
+redis_log_path: /var/log/redis
+redis_log_file: "{{redis_log_path}}/redis.log"
+rails_log_path: "{{ work_dir }}/log"
+
+
+
+memcached_start: true
+memcached_start_on_boot: true
+
+memcached_address: 127.0.0.1
+memcached_port: 11211
+memcached_memory: 64
+memcached_connections: 1024
+

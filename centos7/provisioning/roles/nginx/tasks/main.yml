@@ -1,0 +1,28 @@
+# file: provisioning/roles/nginx/tasks/main.yml
+- name: install nginx
+  yum: name=nginx state=present
+  tags:
+    - nginx
+
+- name: put nginx.conf
+  template: src=nginx.conf.j2 dest=/etc/nginx/nginx.conf
+  tags:
+    - nginx
+
+# logrotate用のパーミッション設定
+- name: set logrotate parmission setting
+  shell: sed -i 's/create 0640/create 0644/' /etc/logrotate.d/nginx
+  tags:
+    - nginx
+
+
+- name: set auto start nginx
+  command: chkconfig nginx on
+  tags:
+    - nginx
+
+- name: restart nginx
+  command: service nginx restart
+  tags:
+    - nginx
+

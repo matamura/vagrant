@@ -1,0 +1,17 @@
+- name: git clone https://github.com/sstephenson/rbenv.git
+  git: repo=https://github.com/sstephenson/rbenv.git dest={{ rbenv_root }}
+  tags:
+    - ruby
+    - rbenv
+
+- name: create rbenv group
+  sudo: yes
+  group: name=rbenv state=present
+
+- name: add user to rbenv group
+  sudo: yes
+  user: name=vagrant append=yes groups=rbenv
+  register: add_group
+
+
+

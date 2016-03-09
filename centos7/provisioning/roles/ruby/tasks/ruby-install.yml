@@ -1,0 +1,43 @@
+- name: check ruby rbenv installed
+  shell: cd; bash -lc "rbenv versions | grep {{ ruby_version }} | tr '*' ' ' | sed -e 's/\s\+//' | cut -f1 -d' '"
+  register: ruby_installed
+  ignore_errors: yes
+  tags:
+    - ruby
+    - ruby:install
+    - install
+
+- name: rbenv install "{{ ruby_version }}"
+  command: bash -lc "CONFIGURE_OPTS="--disable-install-rdoc" rbenv install {{ ruby_version }}"
+  when: ruby_installed.stdout != ruby_version
+  tags:
+    - ruby
+    - ruby:install
+    - install
+
+- name: rbenv global "{{ ruby_version }}"
+  command: bash -lc "rbenv global {{ ruby_version }} && rbenv rehash"
+  when: ruby_installed.stdout != ruby_version
+  tags:
+    - ruby
+    - ruby:install
+    - install
+
+- name: install bundler
+  shell: "{{ rbenv_root }}/shims/gem install bundler"
+  args:
+    creates: "{{ rbenv_root }}/bundle"
+  tags:
+    - ruby
+    - ruby:install
+    - install
+
+
+#- name: Install Bundler
+#  command: bash -lc "gem install bundler"
+#  tags:
+#    - ruby
+#    - ruby:install
+#    - install
+
+
