@@ -1,0 +1,67 @@
+- name: Create NGINX Services (templates)
+  file: path=services/nginx/templates state=directory mode=0755
+
+- name: Create NGINX Services (instances)
+  file: path=services/nginx/instances state=directory mode=0755
+
+- name: Create NGINX Services (static)
+  file: path=services/nginx/static state=directory mode=0755
+
+- name: Create NGINX Services (tools)
+  file: path=services/nginx/tools state=directory mode=0755
+
+- name: Create NGINX Services (conf)
+  file: path=services/nginx/conf.d state=directory mode=0755
+
+- name: Copy nginxctl
+  copy: src=../files/nginxctl dest={{ ansible_env.HOME }}/services/nginx/tools/ mode=0755
+
+- name: Copy set_node
+  copy: src=../files/set_node dest={{ ansible_env.HOME }}/services/nginx/tools/ mode=0755
+
+
+- name: Transfer nginx service settings
+  become: True
+  template: src=../template/nginx@.service.j2 dest=services/nginx/templates/nginx@.service
+
+- name: Transfer nginx conf
+  become: True
+  template: src=../template/nginx@.conf.j2 dest=services/nginx/templates/nginx@.conf
+
+
+- name: Transfer nginx datadir settings
+  template: src=../template/nginx_datadir@.service.j2 dest=services/nginx/templates/nginx_datadir@.service
+
+
+- name: Create nginx datadir service instances
+  file: src={{ ansible_env.HOME }}/services/nginx/templates/nginx_datadir@.service dest={{ ansible_env.HOME }}/services/nginx/instances/nginx_datadir@{{ item }}.service state=link
+  with_sequence: start=1 end={{ ansible_app_cluster_num }}
+
+
+- name: Create nginx service instances
+  file: src={{ ansible_env.HOME }}/services/nginx/templates/nginx@.service dest={{ ansible_env.HOME }}/services/nginx/instances/nginx@{{ item }}.service state=link
+  with_sequence: start=1 end={{ ansible_app_cluster_num }}
+
+
+- name: Create nginx conf
+  shell: cp {{ ansible_env.HOME }}/services/nginx/templates/nginx@.conf {{ ansible_env.HOME }}/services/nginx/conf.d/nginx_{{ item }}.conf
+  with_sequence: start=1 end={{ ansible_app_cluster_num }}
+
+
+- name: setting config node
+  shell: "{{ ansible_env.HOME }}/services/nginx/tools/set_node {{ item }}"
+  with_sequence: start=1 end={{ ansible_app_cluster_num }}
+
+
+#- name: Transfer nginx cloud-config
+#  become: True
+#  template: src=../template/nginx.service.j2 dest=/etc/systemd/system/nginx.service
+
+#- name: Enable nginx.service
+#  become: True
+#  raw: systemctl enable nginx
+
+#- name: Starting nginx.service
+#  become: True
+#  raw: systemctl start nginx
+

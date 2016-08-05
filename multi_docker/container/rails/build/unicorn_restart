@@ -1,0 +1,13 @@
+#!/bin/bash
+pid=`cat /opt/tmp/pids/unicorn.pid`
+
+echo "starting new server..."
+kill -s USR2 $pid
+sleep 3
+
+echo "stopping old worker..."
+kill -s WINCH $pid
+sleep 3
+
+echo "stopping old master..."
+kill -s QUIT $pid

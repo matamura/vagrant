@@ -1,0 +1,5 @@
+#!/bin/sh
+
+NODE=$1
+
+sed -e "s#__node__#${NODE}#g" ~/services/nginx/templates/nginx@.conf > ~/services/nginx/conf.d/nginx_${NODE}.conf

@@ -1,0 +1,5 @@
+- name: HAProxy bootstrapping
+  hosts: haproxy
+  gather_facts: true
+  roles:
+    - haproxy

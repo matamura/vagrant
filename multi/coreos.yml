@@ -1,0 +1,44 @@
+- name: preparing
+  hosts: 127.0.0.1
+  tasks:
+    - name: generate discovery token
+      raw: ./bin/generate_discovery_token.sh
+
+# python と pipを使えるようにする
+- name: bootstrap
+  hosts: coreos
+  gather_facts: false
+  roles:
+    - coreos-bootstrap
+
+# coreosの基本設定
+- name: coreos setup
+  hosts: coreos
+  sudo: yes
+  gather_facts: true
+  roles:
+    - common-setup
+
+- name: etcd-master setup
+  hosts: cluster-admin
+  gather_facts: true
+  roles:
+    - etcd
+    - generate-cloud-config
+
+- name: etcd-proxy setup
+  hosts: cluster-proxy
+  gather_facts: true
+  roles:
+    - etcd
+    - generate-cloud-config
+
+- name: coreos setup
+  hosts: coreos
+  gather_facts: true
+  roles:
+    - fleet-init
+    - flannel-init
+    - docker-init
+    - generate-cloud-config
+    - fleet-restart

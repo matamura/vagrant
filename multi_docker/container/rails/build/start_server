@@ -1,0 +1,17 @@
+#!/bin/bash
+
+source /tools/set_env
+
+
+# start rails
+cd /src/github.com/to-project/
+bundle config build.nokogiri --use-system-libraries
+bundle install --jobs=4 --path=vendor/bundle --binstubs=vendor/bin --without test development
+bundle exec rake db:migrate RAILS_ENV=development_container
+bundle exec rake db:seed RAILS_ENV=development_container
+#bundle exec rails server -b 0.0.0.0 -d -edevelopment_container
+bundle exec unicorn -c /src/github.com/to-project/config/unicorn/development_container.rb -E development_container -D -p 3000
+
+exit
+
+

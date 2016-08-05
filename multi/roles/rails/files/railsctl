@@ -1,0 +1,98 @@
+#!/bin/sh
+
+CMD=$1
+NODE=$2
+
+CONSUL_CONTAINER_NAME=consul
+SERVICE_NAME=rails
+SERVICE_TAGS=node_${NODE}
+
+RAILS_NAME=${SERVICE_NAME}_${NODE}
+RAILS_DISK_NAME=${SERVICE_NAME}_datadir_${NODE}
+RAILS_REPOSITORY=matamura/to_project:rails
+
+ETCD_KEY_NODES=/to-pj/rails/nodes
+ETCD_LOCK_ID=/to-pj/rails/lock
+ETCD_MYSQL_LOCK_ID=/to-pj/mysql/lock
+ETCD_REDIS_LOCK_ID=/to-pj/redis/lock
+
+
+
+function wait_for_ready_to_rails() {
+  # 起動待ち
+  /home/core/tools/check-container ${RAILS_NAME} true
+
+  true
+}
+
+
+function start() {
+
+  /home/core/tools/etcd-lockctl lock ${ETCD_LOCK_ID}
+  /home/core/tools/etcd-lockctl lock ${ETCD_MYSQL_LOCK_ID}
+  /home/core/tools/etcd-lockctl lock ${ETCD_REDIS_LOCK_ID}
+
+
+
+  /home/core/tools/etcd-lockctl unlock ${ETCD_MYSQL_LOCK_ID}
+  /home/core/tools/etcd-lockctl unlock ${ETCD_REDIS_LOCK_ID}
+
+
+  # cleanup
+  /usr/bin/docker kill ${RAILS_NAME}
+  /usr/bin/docker rm ${RAILS_NAME}
+  /usr/bin/docker pull ${RAILS_REPOSITORY}
+
+
+  # コンテナを起動
+  /usr/bin/docker run -d --name ${RAILS_NAME} \
+                      --privileged \
+                      --dns `docker inspect --format="{{ .NetworkSettings.IPAddress }}" ${CONSUL_CONTAINER_NAME}` \
+                      --link ${CONSUL_CONTAINER_NAME}:${CONSUL_CONTAINER_NAME} \
+                      -e "SERVICE_NAME=${SERVICE_NAME}" \
+                      -e "SERVICE_TAGS=${SERVICE_TAGS}" \
+                      --volumes-from ${RAILS_DISK_NAME} \
+                      ${RAILS_REPOSITORY} \
+                      /bin/sh -c "while true; do sleep 1; done"
+
+
+
+  echo "configure rails. "
+
+
+
+
+  # LISTEN状態になるまで待機する
+  echo "Wait for ready to rails..."
+  wait_for_ready_to_rails
+  echo "Wait for ready to rails...done."
+
+
+  ipv4=$(/usr/bin/docker inspect --format='{{ .NetworkSettings.IPAddress }}' ${container_id} 2> /dev/null)
+
+  # コンテナIDをIPを登録しておく
+  /usr/bin/etcdctl set ${ETCD_KEY_NODES}/${SERVICE_TAGS}_id ${container_id}
+  /usr/bin/etcdctl set ${ETCD_KEY_NODES}/${SERVICE_TAGS}_ipv4 ${ipv4}
+
+  /usr/bin/docker exec -i ${RAILS_NAME} /usr/bin/start_server
+
+
+  /home/core/tools/etcd-lockctl unlock ${ETCD_LOCK_ID}
+
+while true
+do
+  sleep 1
+done
+
+}
+
+function down() {
+  /usr/bin/docker exec ${RAILS_NAME} /rails/down_server.sh
+  /usr/bin/docker stop ${RAILS_NAME}
+
+}
+
+case "${CMD}" in
+  "start" ) start ;;
+  "down" ) down ;;
+esac

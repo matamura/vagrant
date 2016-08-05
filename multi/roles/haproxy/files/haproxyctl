@@ -1,0 +1,68 @@
+#!/bin/sh
+
+CMD=$1
+IS_PORT_PUBLIC=${2:-0}
+CONTAINER_NAME=internal_lb
+CONSUL_CONTAINER_NAME=consul
+DOCKER_REPOSITORY=matamura/to_project:haproxy
+CFG_FILE=/home/core/services/haproxy/conf.d/haproxy.cfg
+SERVICE_NAME=haproxy
+SERVICE_TAGS=internal
+
+function configure() {
+
+  # consulのipを得る
+  consul_ipv4=$(/usr/bin/docker inspect --format='{{ .NetworkSettings.IPAddress }}' ${CONSUL_CONTAINER_NAME})
+  if [ $? != 0 ]; then
+    echo "error...consul does not exists."
+    exit 1;
+  fi
+
+  # コピーを作る
+  cp -pf ${CFG_FILE}.j2 ${CFG_FILE}
+
+  # ファイル置き換え
+  sed -i -e "s#__consul_ipv4__#${consul_ipv4}#g" ${CFG_FILE}
+
+  echo ${consul_ipv4}
+}
+
+
+function start() {
+
+  # cfgファイル生成
+  consul_ipv4=`configure`
+
+  # cleanup
+  /usr/bin/docker kill ${CONTAINER_NAME}
+  /usr/bin/docker rm ${CONTAINER_NAME}
+  /usr/bin/docker pull ${DOCKER_REPOSITORY}
+
+  public_port=""
+  if [ ${IS_PORT_PUBLIC} == 1 ]; then
+    #public_port="-p 3306:3306 -p 6379:6379"
+    public_port="-p 3306:3306  -p 80:80"
+  fi
+
+  # 複数のportをExposeした状態だとconsulに登録されない不具合がある！？
+  # 実際に外部ポートを公開することはないので、商用では問題ないはずだが、dockerイメージの方にも注意が必要
+  /usr/bin/docker run --name ${CONTAINER_NAME} ${public_port} \
+                      --dns ${consul_ipv4} \
+                      --link ${CONSUL_CONTAINER_NAME}:${CONSUL_CONTAINER_NAME} \
+                      -e "SERVICE_NAME=${SERVICE_NAME}" \
+                      -e "SERVICE_TAGS=${SERVICE_TAGS}" \
+                      -v ${CFG_FILE}:/etc/haproxy/haproxy.cfg \
+                      -v /etc/localtime:/etc/localtime:ro \
+                      ${DOCKER_REPOSITORY} \
+                      /usr/sbin/haproxy -f /etc/haproxy/haproxy.cfg
+}
+
+function down() {
+  /usr/bin/docker stop ${CONTAINER_NAME}
+
+}
+
+case "${CMD}" in
+  "start" ) start ;;
+  "down" ) down ;;
+esac

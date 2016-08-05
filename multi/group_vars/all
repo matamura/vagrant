@@ -1,0 +1,126 @@
+### 共通 ###
+
+ansible_ssh_user: core
+
+# coreosインストール時のcloud-configがあるパス
+ansible_coreos_cloud_config_path: /usr/share/oem
+
+# デフォルトのcloud-config
+ansible_coreos_cloud_config_userdata: cloud-config.yml
+
+
+
+### Websocketサーバー ###
+
+# WebSocketサーバーを起動するか
+# 起動しない場合はwhile trueで起動する
+# 開発する時などで使用
+ansible_ws_do_running: 1
+
+# WebSocketサーバーのディスクマウントポイント
+ansible_ws_data: /var/lib/ws_%i
+ansible_ws_srcdir: /srcdir/ws_datadir_%i
+ansible_ws_opt_srcdir_core:
+ansible_ws_opt_srcdir_battle:
+ansible_ws_opt_srcdir_admin:
+ansible_ws_backup: /var/lib//backup
+ansible_ws_backupfile: ws_datadir
+
+
+### Mysql ###
+
+# 起動するサービスの数
+ansible_mysql_cluster_num: 1
+
+# userとpassword
+ansible_mysql_user: to
+ansible_mysql_pass: Ac7PPsLG6H
+ansible_mysql_dbname: to_development
+
+# ヘルスチェック用ユーザー
+ansible_mysql_hc_user: check_user
+
+# レプリケーション用ユーザー
+ansible_mysql_repl_user: repl
+ansible_mysql_repl_pass: vELeJb6c
+
+# バッファプールサイズ
+ansible_mysql_character: utf8mb4
+ansible_mysql_innodb_buffer_pool: 1024M
+ansible_mysql_logfile_size: 32M
+ansible_mysql_ibdata_size: 32M
+ansible_mysql_galera_options: gcache.size=16M; gcache.page_size=8M
+
+# 外部ディスクマウントポイント
+ansible_mysql_extdisk_backup: /backup/data_%i
+ansible_mysql_extdisk_backupfile: mysql_datadir_%i
+ansible_mysql_extdisk_mysql: /var/lib/mysql_%i
+ansible_mysql_extdisk_cnf: /etc/my.cnf.d_%i
+
+
+
+
+
+
+### Redis Cluster ###
+
+# 起動するMASTERの数
+ansible_redis_masters: 3
+
+# MASTERに対するSLAVEの比率
+ansible_redis_replicas: 1
+
+# 外部ディスクマウントポイント
+ansible_redis_extdisk_backup: /backup/data_%i_%i
+ansible_redis_extdisk_backupfile: redis_datadir_%i
+ansible_redis_extdisk_redis: /var/lib//redis_%i
+
+### Fleet ###
+
+# MySQLのX-Fleet
+ansible_mysql_datadir_x_fleet: Conflicts=mysql_datadir@*.service
+ansible_mysql_x_fleet: MachineOf=mysql_datadir@%i.service
+
+# RedisのX-Fleet
+ansible_redis_datadir_x_fleet: ""
+ansible_redis_x_fleet: MachineOf=redis_datadir@%i.service
+
+# nginxのX-Fleet
+ansible_nginx_datadir_x_fleet: Conflicts=nginx_datadir@*.service
+ansible_nginx_x_fleet: Conflicts=nginx.service
+
+
+# railsのX-Fleet
+ansible_rails_datadir_x_fleet: ""
+ansible_rails_x_fleet: MachineOf=rails_datadir@%i.service
+
+
+
+### HAProxy ###
+
+# ポートを公開するか
+ansible_haproxy_is_public: 1
+
+
+### APPサーバー ###
+ansible_rails_extdisk_backup: /backup/data_%i
+ansible_rails_extdisk_backupfile: rails_datadir_%i
+ansible_rails_extdisk_rails: /var/lib/rails_%i
+ansible_rails_tool: /home/core/tools
+ansible_rails_srcdir: /srcdir/rails_datadir_%i
+ansible_rails_opt_srcdir_rails: -v /srcdir/rails_datadir_%i:/src/github.com/to-project
+ansible_rails_backup: /backup/data_%i
+ansible_rails_backupfile: rails_datadir_%i
+
+ansible_app_cluster_num: 1
+
+
+
+### Nginx ###
+
+# 外部ディスクマウントポイント
+ansible_nginx_extdisk_backup: /backup/data_%i
+ansible_nginx_extdisk_backupfile: nginx_datadir_%i
+ansible_nginx_extdisk_nginx: /var/lib/nginx_%i
+ansible_nginx_extdisk_cnf: /etc/my.cnf.d_%i
+

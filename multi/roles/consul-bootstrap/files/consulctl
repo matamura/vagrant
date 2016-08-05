@@ -1,0 +1,160 @@
+#!/bin/sh
+
+# etcdを利用する
+# 1): consulのマスターIP
+# 2): ロック用データ
+
+etcd_key_masters="/to-pj/consul/masters"
+etcd_key_lockid="/to-pj/consul/lock"
+container_name=consul
+registrator_container=registrator
+command_type=$1
+node_type=$2
+bootstrap_expect=$3
+ctl_option=$4
+docker_repository=matamura/to_project:consul
+
+# マスターノードのIPを取得する
+function get_master_ip() {
+  nodes=$(/usr/bin/etcdctl ls ${etcd_key_masters})
+
+  cnt=0
+  cluster_address=""
+  for key in $nodes
+  do
+    node_ip=$(/usr/bin/etcdctl get ${key})
+    if [ $cnt == 0 ]; then
+      cluster_address=${node_ip}
+    else
+      cluster_address="${cluster_address},${node_ip}"
+    fi
+    cnt=`expr $cnt + 1`
+  done
+
+  # １つだけ取得できれば良い
+  master_ip=""
+  IFS=,
+  for ip in ${cluster_address}
+  do
+    master_ip=${ip}
+    break
+  done
+  echo ${master_ip}
+}
+
+# マスターノードのIPを取得する
+function remove_in_masters() {
+  if [ "${node_type}" != "master" ]; then
+    IP=$(/usr/bin/docker inspect --format="{{ .NetworkSettings.IPAddress }}" ${container_name})
+    /usr/bin/etcdctl rm ${etcd_key_masters}/${IP} > /dev/null 2>&1
+  fi
+}
+
+# すべてのノードKEYを削除する
+function remove_all_etcd_keys() {
+  nodes=$(/usr/bin/etcdctl ls ${etcd_key_masters})
+
+  cnt=0
+  cluster_address=""
+  for key in $nodes
+  do
+    /usr/bin/etcdctl rm ${key}
+    cnt=`expr $cnt + 1`
+  done
+
+}
+
+# 起動
+function start() {
+
+  # cleanup
+  /usr/bin/docker kill ${registrator_container} ${container_name} 2> /dev/null
+  /usr/bin/docker rm ${registrator_container} ${container_name} 2> /dev/null
+  /usr/bin/docker pull ${docker_repository}
+  /usr/bin/docker pull gliderlabs/registrator
+
+  # 排他制御
+  # etcdにロックの仕組みが見当たらない！？
+  # ディレクトリを作成してみて可能かどうかで判定する（古典的ロック）
+  /home/core/tools/etcd-lockctl lock ${etcd_key_lockid}
+
+  # 起動中のクラスタ数を得る
+  up_nodes=$(/usr/bin/etcdctl ls ${etcd_key_masters} | wc -l)
+  if [ ${up_nodes} == 0 ]; then
+    # 初期ノード実行時はetcdのデータをクリーンナップする
+    remove_all_etcd_keys
+    echo "cleanup etcd data for initial boot."
+  fi
+
+  # ブート用のオプションを作成する
+  boot_option=""
+  if [ "${node_type}" == "master" ]; then
+    boot_option="-server -bootstrap-expect ${bootstrap_expect}"
+  fi
+
+  master_ip=$(get_master_ip)
+  if [ "${master_ip}" != "" ]; then
+    boot_option="${boot_option} -join ${master_ip}"
+  fi
+
+  boot_option="${boot_option} -config-dir=/config"
+
+  # 起動
+  node_id=$(hostname)
+  /usr/bin/docker run -d -v /etc/localtime:/etc/localtime:ro -h ${node_id} --name ${container_name} ${docker_repository} agent ${boot_option}
+
+  IP=$(/usr/bin/docker inspect --format="{{ .NetworkSettings.IPAddress }}" ${container_name})
+  if [ "${node_type}" == "master" ]; then
+    # マスターノードの場合はIPをetcdに書き込む
+    /usr/bin/etcdctl set ${etcd_key_masters}/${IP} ${IP} > /dev/null 2>&1
+    echo "consul master added ${node_id}: ${IP}"
+  else
+    echo "consul client added ${node_id}: ${IP}"
+  fi
+
+  # start registrator
+  /usr/bin/docker run -d -v /var/run/docker.sock:/tmp/docker.sock \
+                -v /etc/localtime:/etc/localtime:ro \
+                -h registrator-1 \
+                --name ${registrator_container} \
+                gliderlabs/registrator \
+                -internal \
+                consul://${IP}:8500
+
+  # ロック解除
+  /home/core/tools/etcd-lockctl unlock ${etcd_key_lockid}
+
+}
+
+# シャットダウン
+function down() {
+  # マスターノードならetcdから削除
+  remove_in_masters
+
+  # コンテナを停止
+  /usr/bin/docker stop ${registrator_container} ${container_name} 2> /dev/null
+  /usr/bin/docker rm ${registrator_container} ${container_name} 2> /dev/null
+
+}
+
+if [ "${command_type}" == "start" ]; then
+  echo "Starting consul container..."
+  down
+  start
+
+elif [ "${command_type}" == "down" ]; then
+  echo "Stopping consul container..."
+  down
+
+elif [ "${command_type}" == "cleanup" ]; then
+  echo "Cleanup consul container..."
+  remove_all_etcd_keys
+  # ロック解除
+  /home/core/tools/etcd-lockctl unlock ${etcd_key_lockid}
+fi
+
+if [ "${command_type}" != "cleanup" ] && [ "${ctl_options}" != "-d" ]; then
+  /usr/bin/docker exec ${container_name} /bin/sh -c "while true; do sleep 1; done"
+fi
+
+echo "done."

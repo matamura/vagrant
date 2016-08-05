@@ -1,0 +1,5 @@
+
+# fleetをrestart
+- name: fleet restart
+  become: True
+  raw: systemctl restart fleet

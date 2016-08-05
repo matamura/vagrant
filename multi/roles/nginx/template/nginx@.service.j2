@@ -1,0 +1,17 @@
+[Unit]
+Description=Nginx Service
+Requires=nginx_datadir@%i.service
+Requires=rails@%i.service
+After=nginx_datadir@%i.service
+After=rails@%i.service
+
+[Service]
+TimeoutStartSec=0
+Restart=always
+RestartSec=5
+ExecStart=/home/core/services/nginx/tools/nginxctl start %i
+ExecStop=/home/core/services/nginx/tools/nginxctl down %i
+
+[X-Fleet]
+MachineMetadata=role=app
+{{ ansible_nginx_x_fleet }}

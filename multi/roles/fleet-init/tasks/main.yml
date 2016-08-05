@@ -1,0 +1,4 @@
+- name: Transfer fleet cloud-config
+  become: True
+  template: src=../template/cloud-config.yml.j2 dest={{ ansible_coreos_cloud_config_path }}/cloud-config.yml.03-fleet
+

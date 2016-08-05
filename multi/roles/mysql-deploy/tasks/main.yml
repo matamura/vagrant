@@ -1,0 +1,6 @@
+- name: Starting MySQL datadir service on clusters via fleet
+  raw: fleetctl start {{ ansible_env.HOME }}/services/mysql/instances/mysql_datadir@*
+
+- name: Starting MySQL service on clusters via fleet
+  raw: fleetctl start {{ ansible_env.HOME }}/services/mysql/instances/mysql@*
+

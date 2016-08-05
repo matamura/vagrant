@@ -1,0 +1,239 @@
+#!/bin/sh
+
+CMD=$1
+MASTERS=$2
+REPLICAS=${3:-0}
+NODE=$4
+REDIS_PORT=${5:-6379}
+REQUIRE_CLUSTERS=$6
+
+CONSUL_CONTAINER_NAME=consul
+SERVICE_NAME=redis
+SERVICE_TAGS=node_${NODE}
+
+REDIS_NAME=${SERVICE_NAME}_${NODE}
+REDIS_DISK_NAME=${SERVICE_NAME}_datadir_${NODE}
+REDIS_REPOSITORY=matamura/to_project:redis
+
+ETCD_KEY_NODES=/to-pj/redis/nodes
+ETCD_KEY_C2NODES=/to-pj/redis/container2nodes
+ETCD_LOCK_ID=/to-pj/redis/lock
+
+
+function get_dns() {
+  # etcdにredisのDNS名を記録
+  REDIS_DNS_NAME=${SERVICE_TAGS}.${SERVICE_NAME}.service.consul
+  echo ${REDIS_DNS_NAME}
+}
+
+function get_cluster_node_id() {
+  echo $(/usr/bin/docker exec ${REDIS_NAME} cat /var/lib/redis/nodes.conf | grep myself | awk '{print $1}')
+}
+
+function set_cluster_node_id() {
+  # 自分のノードを記録しておく
+  cluster_node_id=`get_cluster_node_id`
+
+  echo "cluster_node_id = ${cluster_node_id}"
+  if [ "${cluster_node_id}" != "" ]; then
+
+    # 自IPを得る
+    ipv4=$(/usr/bin/docker inspect --format='{{ .NetworkSettings.IPAddress }}' ${REDIS_NAME})
+
+    # etcdにノードIDとコンテナ名を関連づけるデータを記録しておく
+    /usr/bin/etcdctl set ${ETCD_KEY_C2NODES}/${cluster_node_id} ${ipv4}
+
+    echo "${REDIS_NAME} is ${cluster_node_id} (ip: ${ipv4})"
+
+  else
+
+    echo "node is not exists."
+
+  fi
+
+}
+
+function del_cluster_node_id() {
+  cluster_node_id=`get_cluster_node_id`
+  /usr/bin/etcdctl rm ${ETCD_KEY_C2NODES}/${cluster_node_id}
+}
+
+# クラスタをリセットする
+function reset() {
+  # 起動しているコンテナのIPを取得する
+  nodes=$(etcdctl ls ${ETCD_KEY_C2NODES})
+
+  for key in $nodes
+  do
+    /usr/bin/etcdctl rm ${key}
+    echo "remove key ${key} in etcd"
+  done
+
+  /usr/bin/etcdctl rmdir ${ETCD_KEY_C2NODES}
+  echo "remove directory ${ETCD_KEY_C2NODES}"
+}
+
+# クラスタ情報を表示
+function info() {
+  # 起動しているコンテナのIPを取得する
+  nodes=$(etcdctl ls ${ETCD_KEY_C2NODES})
+
+  for key in $nodes
+  do
+    ipv4=$(/usr/bin/etcdctl get ${key})
+    echo "${key##*/} is ${ipv4}"
+  done
+}
+
+
+# IPアドレスをマイグレーションする
+# 再起動時に変わるIPアドレスを以前のものと置き換える
+function migrate_ip() {
+
+  exist_nodes=$(/usr/bin/etcdctl ls ${ETCD_KEY_C2NODES} | wc -l)
+  # 初回起動じゃない場合
+  if [ ${exist_nodes} -ne 0 ]; then
+
+    nodes=$(/usr/bin/etcdctl ls ${ETCD_KEY_C2NODES})
+    cnt=0
+    cluster_address=""
+    for key in $nodes
+    do
+      node_addr="${key##*/}@$(/usr/bin/etcdctl get ${key}):${REDIS_PORT}"
+      if [ $cnt == 0 ]; then
+        cluster_address=${node_addr}
+      else
+        cluster_address="${cluster_address},${node_addr}"
+      fi
+      cnt=`expr $cnt + 1`
+    done
+
+    # nodes.confを書き換える
+    /usr/bin/docker exec ${REDIS_NAME} ruby /usr/local/bin/node-migrate.rb nodes.conf ${cluster_address}
+
+    echo "nodes.conf migrated."
+
+  fi
+}
+
+function start() {
+
+  # ロック
+  /home/core/tools/etcd-lockctl lock ${ETCD_LOCK_ID}
+
+  exist_nodes=$(/usr/bin/etcdctl ls ${ETCD_KEY_C2NODES}| wc -l)
+
+  if [ ${exist_nodes} -eq 0 ]; then
+
+    nodes=$(/usr/bin/etcdctl ls ${ETCD_KEY_NODES})
+    cnt=0
+    cluster_address=""
+    for key in $nodes
+    do
+      node_addr="$(/usr/bin/etcdctl get ${key}):${REDIS_PORT}"
+      if [ $cnt == 0 ]; then
+        cluster_address=${node_addr}
+      else
+        cluster_address="${cluster_address} ${node_addr}"
+      fi
+      cnt=`expr $cnt + 1`
+    done
+
+    # 他のサーバーが起動するまで少し待つ（暫定対応）
+    sleep 1
+
+    # クラスタが作成されていない場合、初期化する
+    echo "initialize cluster..."
+    # 適当なノードで初期化処理を行う
+    /usr/bin/docker exec ${REDIS_NAME} redis-trib.rb create --replicas ${REPLICAS} ${cluster_address}
+    echo "initialize cluster...done.  redis-trib.rb create --replicas ${REPLICAS} ${cluster_address}"
+
+
+  fi
+
+  set_cluster_node_id
+
+  /home/core/tools/etcd-lockctl unlock ${ETCD_LOCK_ID}
+
+  # 空転起動
+  /usr/bin/docker exec ${REDIS_NAME} /bin/sh -c "while true; do sleep 1; done"
+}
+
+
+
+# クラスタを初期化する
+# start()を実行後に実行すること
+function init() {
+
+  DNS_NAME=`get_dns`
+  /usr/bin/etcdctl rm ${ETCD_KEY_NODES}/${DNS_NAME}
+
+  # cleanup
+  /usr/bin/docker kill ${REDIS_NAME}
+  /usr/bin/docker rm ${REDIS_NAME}
+  /usr/bin/docker pull ${REDIS_REPOSITORY}
+
+  # コンテナを起動
+  /usr/bin/docker run -d --name ${REDIS_NAME} \
+                      --privileged \
+                      --dns `docker inspect --format="{{ .NetworkSettings.IPAddress }}" ${CONSUL_CONTAINER_NAME}` \
+                      --link ${CONSUL_CONTAINER_NAME}:${CONSUL_CONTAINER_NAME} \
+                      -e "SERVICE_NAME=${SERVICE_NAME}" \
+                      -e "SERVICE_TAGS=${SERVICE_TAGS}" \
+                      --volumes-from ${REDIS_DISK_NAME} \
+                      ${REDIS_REPOSITORY} \
+                      /bin/sh -c "while true; do sleep 1; done"
+
+
+  # 起動失敗？
+  ret=$?
+  if [ ${ret} != 0 ]; then
+    echo "docker run error."
+    exit 1
+  fi
+
+  # 起動コンテナの情報をetcdに記録する
+  /home/core/tools/set-container-ip ${REDIS_NAME} ${ETCD_KEY_NODES}/${DNS_NAME}
+  # クラスタのIPを更新する（初回起動じゃない場合）
+  set_cluster_node_id
+
+  # クラスタ全員が揃うまで待機する
+  if [ ${REQUIRE_CLUSTERS} > 0 ]; then
+    echo "Wait for wakeup containers..."
+    while [ $(/usr/bin/etcdctl ls ${ETCD_KEY_NODES} | wc -l) -ne ${REQUIRE_CLUSTERS} ];
+    do
+      sleep 1
+      echo "Waiting..."
+    done
+    echo "Wait for wakeup containers...done."
+  fi
+
+  echo "init complete."
+
+  migrate_ip
+
+  # 起動(デーモン起動)
+  /usr/bin/docker exec ${REDIS_NAME} /usr/local/bin/start_server
+
+  exit 0;
+
+}
+
+function down() {
+  DNS_NAME=`get_dns`
+
+  /usr/bin/etcdctl rm ${ETCD_KEY_NODES}/${DNS_NAME} ${DNS_NAME}
+  /usr/bin/docker exec ${REDIS_NAME} redis-cli shutdown
+  /usr/bin/docker stop ${REDIS_NAME}
+
+  exit 0;
+}
+
+case "${CMD}" in
+  "info" ) info ;;
+  "migrate-ip" ) migrate_ip ;;
+  "start" ) start ;;
+  "init" ) init ;;
+  "reset" ) reset ;;
+  "down" ) down ;;
+esac

@@ -1,0 +1,34 @@
+- name: Create Redis Services (templates)
+  file: path=services/redis/templates state=directory mode=0755
+
+- name: Create Redis Services (instances)
+  file: path=services/redis/instances state=directory mode=0755
+
+- name: Create Redis Services (static)
+  file: path=services/redis/static state=directory mode=0755
+
+- name: Create Redis Services (tools)
+  file: path=services/redis/tools state=directory mode=0755
+
+- name: Create Redis Services (conf)
+  file: path=services/redis/conf.d state=directory mode=0755
+
+- name: Copy redisctl
+  copy: src=../files/redisctl dest={{ ansible_env.HOME }}/services/redis/tools/ mode=0755
+
+- name: Transfer Redis datadir settings
+  template: src=../template/redis_datadir@.service.j2 dest=services/redis/templates/redis_datadir@.service
+
+- name: Transfer Redis service settings
+  template: src=../template/redis@.service.j2 dest=services/redis/templates/redis@.service
+
+- name: Cleanup Redis service instances
+  raw: rm -f {{ ansible_env.HOME }}/services/redis/instances/redis*
+
+- name: Duplicate service instances
+  file: src={{ ansible_env.HOME }}/services/redis/templates/redis_datadir@.service dest={{ ansible_env.HOME }}/services/redis/instances/redis_datadir@{{ item }}.service state=link
+  with_sequence: start=1 end={{ ansible_redis_masters + (ansible_redis_masters * ansible_redis_replicas) }}
+
+- name: Duplicate service instances
+  file: src={{ ansible_env.HOME }}/services/redis/templates/redis@.service dest={{ ansible_env.HOME }}/services/redis/instances/redis@{{ item }}.service state=link
+  with_sequence: start=1 end={{ ansible_redis_masters + (ansible_redis_masters * ansible_redis_replicas) }}

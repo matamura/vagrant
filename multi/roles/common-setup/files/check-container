@@ -1,0 +1,48 @@
+#!/bin/sh
+
+ContainerName=$1
+InspectKey=".State.Running"
+MustBe="$2"
+CheckPort=${3:-0}
+SleepTime=10
+Retry=60
+Prev=$Retry
+MaxTime=1
+
+while [ ${Retry} -ne 0 ]
+do
+  Exists=$(/usr/bin/docker ps -a | grep ${ContainerName})
+  if [ "${Exists}" != "" ]; then
+    RunningStatus=$(/usr/bin/docker inspect --format="{{ ${InspectKey} }}" ${ContainerName})
+    if [ "${RunningStatus}" = "${MustBe}" ]; then
+      break
+    fi
+  elif [ "${MustBe}" == "false" ]; then
+    break
+  fi
+  Retry=`expr ${Retry} - 1`
+  echo "Waiting for become '${InspectKey}': ${MustBe}...${ContainerName} Remain...${Retry}x${SleepTime}s"
+  sleep ${SleepTime}
+done
+
+echo "Confirmed '${InspectKey}': ${MustBe}"
+
+if [ "${MustBe}" == "true" ] && [ ${CheckPort} != 0 ]; then
+  # ポート解放をチェックする
+  InspectKey=".NetworkSettings.IPAddress"
+  IP=$(/usr/bin/docker inspect --format="{{ ${InspectKey} }}" ${ContainerName})
+  echo "Wait for ${IP}:${CheckPort} availables"
+  curl -s --max-time ${MaxTime} ${IP}:${CheckPort} &> /dev/null
+  ret=$?
+  # 正常終了かタイムアウト(28)まで待つ
+  while [ $ret != 0 ] && [ $ret != 28 ]
+  do
+    sleep 3
+    echo "Waiting..."
+    curl -s --max-time ${MaxTime} ${IP}:${CheckPort} &> /dev/null
+    ret=$?
+  done
+fi
+
+echo "done"
+

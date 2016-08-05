@@ -1,0 +1,4 @@
+[
+  {"host_dir": "/Users/tamuramachiko/projects/to_project/src", "guest_dir": "/srcdir/rails_datadir_1/", "exclude": [".git/", "/vendor/bundle/", "tmp/", "/log/", ".bundle/"]}
+]
+

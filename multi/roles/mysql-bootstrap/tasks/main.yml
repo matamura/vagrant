@@ -1,0 +1,59 @@
+- name: Create MySQL Services (templates)
+  file: path=services/mysql/templates state=directory mode=0755
+
+- name: Create MySQL Services (instances)
+  file: path=services/mysql/instances state=directory mode=0755
+
+- name: Create MySQL Services (static)
+  file: path=services/mysql/static state=directory mode=0755
+
+- name: Create MySQL Services (tools)
+  file: path=services/mysql/tools state=directory mode=0755
+
+- name: Create MySQL Services (conf)
+  file: path=services/mysql/conf.d state=directory mode=0755
+
+- name: Copy mysqlctl
+  copy: src=../files/mysqlctl dest={{ ansible_env.HOME }}/services/mysql/tools/ mode=0755
+
+- name: Transfer MySQL  init sql templates.
+  template: src=../template/init.sql.j2 dest={{ ansible_env.HOME }}/services/mysql/conf.d/init.sql
+
+
+- name: Transfer MySQL datadir settings
+  template: src=../template/mysql_datadir@.service.j2 dest=services/mysql/templates/mysql_datadir@.service
+
+- name: Transfer MySQL service settings
+  template: src=../template/mysql@.service.j2 dest=services/mysql/templates/mysql@.service
+
+- name: Cleanup MySQL service instances
+  raw: rm -f {{ ansible_env.HOME }}/services/mysql/instances/mysql*
+
+- name: Create master datadir service instances
+  file: src={{ ansible_env.HOME }}/services/mysql/templates/mysql_datadir@.service dest={{ ansible_env.HOME }}/services/mysql/instances/mysql_datadir@{{ item }}.service state=link
+  with_sequence: start=1 end={{ ansible_mysql_cluster_num }}
+
+- name: Create master service instances
+  file: src={{ ansible_env.HOME }}/services/mysql/templates/mysql@.service dest={{ ansible_env.HOME }}/services/mysql/instances/mysql@{{ item }}.service state=link
+  with_sequence: start=1 end={{ ansible_mysql_cluster_num }}
+
+
+
+
+#- name: Transfer mysql_datadir cloud-config
+#  become: True
+#  template: src=../template/mysql_datadir.service.j2 dest=/etc/systemd/system/mysql_datadir.service
+
+#- name: Transfer mysql cloud-config
+#  become: True
+#  template: src=../template/mysql.service.j2 dest=/etc/systemd/system/mysql.service
+
+#- name: Enable mysql.service
+#  become: True
+#  raw: systemctl enable mysql
+
+#- name: Starting mysql.service
+#  become: True
+#  raw: systemctl start mysql
+
+

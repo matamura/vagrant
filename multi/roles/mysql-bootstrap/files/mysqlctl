@@ -1,0 +1,103 @@
+#!/bin/sh
+
+CMD=$1
+NODE=$2
+
+CONSUL_CONTAINER_NAME=consul
+SERVICE_NAME=mysql
+SERVICE_TAGS=node_${NODE}
+
+MYSQL_NAME=mysql_${NODE}
+MYSQL_DISK_NAME=mysql_datadir_${NODE}
+MYSQL_REPOSITORY=matamura/to_project:mysql
+
+ETCD_KEY_NODES=/to-pj/mysql/nodes
+ETCD_LOCK_ID=/to-pj/mysql/lock
+
+
+function configure() {
+  node_id=$1
+  output_dir=/home/core/services/mysql/conf.d
+  mkdir -p ${output_dir}
+
+  init_sql=${output_dir}/init.sql
+#  slave_sql=${output_dir}/slave_setup.sh
+
+ # target_file=${output_dir}/my.cnf
+ #  cp -pf ${output_dir}/my.cnf.j2 ${target_file}
+
+  # server-id update
+ # sed -i -e "s#__server_id__#${node_id}#g" ${target_file}
+
+  docker run --rm --volumes-from mysql_datadir_${node_id} -v ${output_dir}:${output_dir} busybox:latest \
+          /bin/sh -c "cp -pf ${init_sql} /etc/my.cnf.d/init.sql"
+          # && cp -pf ${slave_sql} /etc/my.cnf.d/slave_setup.sh"
+
+}
+
+
+function wait_for_ready_to_mysql() {
+  # 起動待ち
+  /home/core/tools/check-container ${MYSQL_NAME} true
+
+  true
+}
+
+
+
+function start() {
+
+  /home/core/tools/etcd-lockctl lock ${ETCD_LOCK_ID}
+
+
+  # cleanup
+  /usr/bin/docker kill ${MYSQL_NAME}
+  /usr/bin/docker rm ${MYSQL_NAME}
+  /usr/bin/docker pull ${MYSQL_REPOSITORY}
+
+  # 先に空のコンテナを起動
+  /usr/bin/docker run -d --name ${MYSQL_NAME} \
+                      --dns `docker inspect --format="{{ .NetworkSettings.IPAddress }}" ${CONSUL_CONTAINER_NAME}` \
+                      --link ${CONSUL_CONTAINER_NAME}:${CONSUL_CONTAINER_NAME} \
+                      -e "SERVICE_NAME=${SERVICE_NAME}" \
+                      -e "SERVICE_TAGS=${SERVICE_TAGS}" \
+                      --volumes-from ${MYSQL_DISK_NAME} \
+                      ${MYSQL_REPOSITORY} \
+                      /bin/sh -c "while true; do sleep 1; done"
+
+
+  echo "configure mysql. "
+  configure ${NODE} ${DNS_NAME}
+
+  # LISTEN状態になるまで待機する
+  echo "Wait for ready to mysql..."
+  wait_for_ready_to_mysql
+  echo "Wait for ready to mysql...done."
+
+  /home/core/tools/etcd-lockctl unlock ${ETCD_LOCK_ID}
+  echo "configure mysql unlock. "
+
+
+  echo "configure mysql start. "
+  /usr/bin/docker exec ${MYSQL_NAME} /mysql/start
+  echo "configure mysql started. "
+
+
+
+while true
+do
+  sleep 1
+done
+
+}
+
+function down() {
+  /usr/bin/docker exec ${MYSQL_NAME} /mysql/down_server.sh
+  /usr/bin/docker stop ${MYSQL_NAME}
+
+}
+
+case "${CMD}" in
+  "start" ) start ;;
+  "down" ) down ;;
+esac

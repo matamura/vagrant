@@ -1,0 +1,6 @@
+- name: Admin bootstrapping
+  hosts: admin
+  gather_facts: true
+  roles:
+    - game-admin
+

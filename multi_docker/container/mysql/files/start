@@ -1,0 +1,36 @@
+#!/bin/bash
+set -e
+
+BASE_DIR=$(cd "$(dirname "$0")"; pwd)
+bootstrap_file=/var/lib/mysql/.bootstrapped
+IS_SLAVE=${1:-0}
+
+
+chown -R mysql:mysql /opt/mysql
+
+
+IS_BOOTSTRAPPED=0
+if [ ! -f ${bootstrap_file} ]; then
+  /usr/bin/mysql_install_db  --datadir=/opt/mysql --user=mysql
+  touch ${bootstrap_file}
+  echo "db initialized."
+  IS_BOOTSTRAPPED=1
+fi
+
+
+chown -R mysql:mysql /var/lib/mysql
+
+
+# fix permissions and ownership of /run/mysqld
+mkdir -p -m 0755 /run/mysqld
+chown -R mysql:root /run/mysqld
+
+exec /usr/bin/mysqld_safe &
+
+if [ ${IS_BOOTSTRAPPED} = 1 ]; then
+  ${BASE_DIR}/init.sh ${IS_SLAVE}
+  echo "user created."
+fi
+
+exit
+

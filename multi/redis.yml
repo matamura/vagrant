@@ -1,0 +1,6 @@
+- name: Redis Bootstrap
+  hosts: redis
+  gather_facts: true
+  roles:
+    - redis
+

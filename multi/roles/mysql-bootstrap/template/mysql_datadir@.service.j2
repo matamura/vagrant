@@ -1,0 +1,32 @@
+[Unit]
+Description=Mysql Storage Service
+Requires=consul.service
+After=consul.service
+
+[Service]
+TimeoutStartSec=0
+Restart=always
+RestartSec=5
+Environment="DISK_NAME=mysql_datadir_%i"
+Environment="DISK_REPOSITORY=busybox:latest"
+ExecStartPre=/usr/bin/mkdir -p {{ ansible_mysql_extdisk_backup }}
+ExecStartPre=-/usr/bin/docker kill ${DISK_NAME}
+ExecStartPre=-/usr/bin/docker rm ${DISK_NAME}
+ExecStartPre=/usr/bin/docker pull ${DISK_REPOSITORY}
+ExecStart=/usr/bin/docker run --name ${DISK_NAME} \
+                              -v {{ ansible_mysql_extdisk_mysql }}:/var/lib/mysql \
+                              -v {{ ansible_mysql_extdisk_cnf }}:/etc/my.cnf.d \
+                              -v /etc/localtime:/etc/localtime:ro \
+                              ${DISK_REPOSITORY} /bin/sh -c 'while true; do sleep 1; done'
+ExecStartPost=/home/core/tools/check-container ${DISK_NAME} true
+ExecStartPost=-/usr/bin/docker run --rm --name ${DISK_NAME}_recovery --volumes-from ${DISK_NAME} \
+                                  -v {{ ansible_mysql_extdisk_backup }}:/backup \
+                                  ${DISK_REPOSITORY} /bin/sh -c 'cd /var/lib && tar xvf /backup/{{ ansible_mysql_extdisk_backupfile }}.tar'
+ExecStop=/usr/bin/docker stop ${DISK_NAME}
+ExecStopPost=/usr/bin/docker run --rm --name ${DISK_NAME}_backup --volumes-from ${DISK_NAME} \
+                         -v {{ ansible_mysql_extdisk_backup }}:/backup \
+                         ${DISK_REPOSITORY} /bin/sh -c 'cd /var/lib && tar cvf /backup/{{ ansible_mysql_extdisk_backupfile }}.tar mysql'
+
+[X-Fleet]
+MachineMetadata=role=mysql
+{{ ansible_mysql_datadir_x_fleet }}

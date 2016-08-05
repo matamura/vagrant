@@ -1,0 +1,5 @@
+[defaults]
+private_key_file = /Users/tamuramachiko/projects/vmtest/multi/bin/../ssh-keys/develop/id_rsa
+
+[ssh_connection]
+ssh_args = -o ControlMaster=auto -o ControlPersist=60s -F ssh.config

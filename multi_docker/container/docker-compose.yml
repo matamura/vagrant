@@ -1,0 +1,20 @@
+#mysql:
+#  build: ./mysql/
+#  restart: always
+
+#consul:
+#  build: ./consul/
+#  restart: always
+
+#nginx:
+#  build: ./nginx/
+#  restart: always
+
+#rails:
+#  build: ./rails/
+#  restart: always
+
+redis:
+  build: ./redis/
+  restart: always
+

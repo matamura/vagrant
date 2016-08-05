@@ -1,0 +1,2 @@
+- name: Wait for consul activates
+  raw: "/home/core/tools/check-container consul true 8500"

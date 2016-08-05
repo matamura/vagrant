@@ -1,0 +1,14 @@
+#!/bin/sh
+
+Metadata=$1
+
+total=0
+IFS=,
+for data in ${Metadata}
+do
+  meta=$(echo ${data} | tr -d ' ')
+  num=$(/usr/bin/fleetctl list-machines | grep ${meta} | wc -l)
+  total=`expr $total + $num`
+done
+
+echo $total

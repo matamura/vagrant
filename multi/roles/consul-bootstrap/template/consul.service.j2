@@ -1,0 +1,13 @@
+[Unit]
+Description=Consul Service
+After=docker.service flanneld.service
+
+[Service]
+TimeoutStartSec=0
+Restart=always
+RestartSec=10
+ExecStart=/home/core/services/consul/tools/consulctl start {{ ansible_consul_cluster_type }} {{ ansible_consul_cluster_num }}
+ExecStop=/home/core/services/consul/tools/consulctl down
+
+[Install]
+WantedBy=default.target

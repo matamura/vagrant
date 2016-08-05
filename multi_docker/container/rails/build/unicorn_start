@@ -1,0 +1,3 @@
+#!/bin/bash
+
+bundle exec unicorn -c /data/project/config/unicorn/development_container.rb -E development_container -D -p 3000

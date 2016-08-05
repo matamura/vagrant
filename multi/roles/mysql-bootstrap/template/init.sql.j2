@@ -1,0 +1,15 @@
+
+CREATE USER '{{ ansible_mysql_user }}'@'%' IDENTIFIED BY '{{ ansible_mysql_pass }}';
+GRANT ALL PRIVILEGES ON *.* TO '{{ ansible_mysql_user }}'@'%' WITH GRANT OPTION;
+
+CREATE USER '{{ ansible_mysql_user }}'@'localhost' IDENTIFIED BY '{{ ansible_mysql_pass }}';
+GRANT ALL PRIVILEGES ON *.* TO '{{ ansible_mysql_user }}'@'localhost' WITH GRANT OPTION;
+
+CREATE USER '{{ ansible_mysql_hc_user }}'@'%';
+GRANT USAGE ON *.* TO '{{ ansible_mysql_hc_user }}'@'%';
+
+GRANT REPLICATION SLAVE ON *.* TO '{{ ansible_mysql_repl_user }}'@'%' IDENTIFIED BY '{{ ansible_mysql_repl_pass }}';
+
+FLUSH PRIVILEGES;
+
+CREATE DATABASE IF NOT EXISTS {{ ansible_mysql_dbname }};

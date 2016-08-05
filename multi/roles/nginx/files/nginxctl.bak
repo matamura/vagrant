@@ -1,0 +1,81 @@
+#!/bin/sh
+
+CMD=$1
+
+CONSUL_CONTAINER_NAME=consul
+SERVICE_NAME=nginx
+SERVICE_TAGS=node
+
+NGINX_NAME=nginx
+NGINX_REPOSITORY=matamura/to_project:nginx
+
+ETCD_KEY_NODES=/to-pj/nginx/nodes
+
+
+
+
+
+function wait_for_ready_to_api() {
+  # 起動待ち
+  /home/core/tools/check-container ${NGINX_NAME} true
+
+  true
+}
+
+
+function start() {
+
+  # cleanup
+  /usr/bin/docker kill ${NGINX_NAME}
+  /usr/bin/docker rm ${NGINX_NAME}
+  /usr/bin/docker pull ${NGINX_REPOSITORY}
+
+
+  # コンテナを起動(Server起動)
+  container_id=$(/usr/bin/docker run -d --name ${NGINX_NAME} ${public_port} \
+                      --dns `docker inspect --format="{{ .NetworkSettings.IPAddress }}" ${CONSUL_CONTAINER_NAME}` \
+                      --link ${CONSUL_CONTAINER_NAME}:${CONSUL_CONTAINER_NAME} \
+                      -e "SERVICE_NAME=${SERVICE_NAME}" \
+                      -e "SERVICE_TAGS=${SERVICE_TAGS}" \
+                      ${NGINX_REPOSITORY} \
+                      /bin/sh -c "while true; do sleep 1; done")
+
+
+
+  echo "configure nginx. "
+
+
+  # 起動失敗？
+  ret=$?
+  if [ ${ret} != 0 ]; then
+    echo "docker run error."
+    exit 1
+  fi
+
+  # LISTEN状態になるまで待機する
+  echo "Wait for ready to api..."
+  wait_for_ready_to_api
+  echo "Wait for ready to api...done."
+
+  ipv4=$(/usr/bin/docker inspect --format='{{ .NetworkSettings.IPAddress }}' ${container_id} 2> /dev/null)
+
+  # コンテナIDをIPを登録しておく
+  /usr/bin/etcdctl set ${ETCD_KEY_NODES}/${SERVICE_TAGS}_id ${container_id}
+  /usr/bin/etcdctl set ${ETCD_KEY_NODES}/${SERVICE_TAGS}_ipv4 ${ipv4}
+
+
+  echo "configure nginx start. "
+  /usr/bin/docker exec -i ${NGINX_NAME} /nginx/start_server
+
+}
+
+function down() {
+  /usr/bin/docker exec ${NGINX_NAME} /nginx/down_server.sh
+  /usr/bin/docker stop ${NGINX_NAME}
+
+}
+
+case "${CMD}" in
+  "start" ) start ;;
+  "down" ) down ;;
+esac

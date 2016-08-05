@@ -1,0 +1,19 @@
+#!/bin/bash
+
+CURRENT=$(cd $(dirname $0) && pwd)
+INVENTORY_DIR=inventory
+CLOUD_CONFIG=cloud-config
+ENVIRONMENT=$1
+ETCD_CLUSTER_SIZE=5
+CLOUD_CONFIG_DIR=${CURRENT}/${CLOUD_CONFIG}
+
+if [ -z ${ENVIRONMENT} ]; then
+  echo ""
+  echo "Usage: setup [environment]"
+  echo "environment develop/staging/production"
+  echo ""
+  exit
+fi
+
+INVENTORY=${CURRENT}/${INVENTORY_DIR}/${ENVIRONMENT}
+

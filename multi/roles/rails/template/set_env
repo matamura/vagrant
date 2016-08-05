@@ -1,0 +1,4 @@
+#!/bin/sh
+export DATABASE_HOST=node_1.mysql.service.consul
+export REDIS_HOST=node_1.redis.service.consul
+export TERM=vt100

@@ -1,0 +1,6 @@
+- name: Starting Redis datadir service on clusters via fleet
+  raw: fleetctl start {{ ansible_env.HOME }}/services/redis/instances/redis_datadir@*
+
+- name: Starting Redis service on clusters via fleet
+  raw: fleetctl start {{ ansible_env.HOME }}/services/redis/instances/redis@*
+

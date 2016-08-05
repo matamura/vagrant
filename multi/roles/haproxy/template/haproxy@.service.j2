@@ -1,0 +1,16 @@
+[Unit]
+Description=HAProxy Service (Internal LoadBalancer)
+Requires=consul.service
+After=consul.service
+
+[Service]
+TimeoutStartSec=0
+Restart=always
+RestartSec=5
+ExecStart=/home/core/services/haproxy/tools/haproxyctl start {{ ansible_haproxy_is_public }}
+ExecStop=/home/core/services/haproxy/tools/haproxyctl down
+
+[X-Fleet]
+Conflicts=haproxy*
+MachineMetadata=role=admin
+MachineMetadata=role=app

@@ -1,0 +1,6 @@
+- name: Starting nginx data_dir on clusters via fleet
+  raw: fleetctl start {{ ansible_env.HOME }}/services/nginx/instances/nginx_datadir@*
+
+- name: Starting nginx service on clusters via fleet
+  raw: fleetctl start {{ ansible_env.HOME }}/services/nginx/instances/nginx@*
+

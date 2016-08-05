@@ -1,0 +1,41 @@
+write_files:
+- path: /etc/skel/.bash_profile
+  permissions: 0644
+  content: |
+    [[ -f ~/.bashrc ]] && . ~/.bashrc
+    alias ll='ls -la --color=auto'
+
+# 環境変数を設定
+- path: /etc/environment
+  permissions: 0644
+  content: |
+   COREOS_PUBLIC_IPV4=$public_ipv4
+   COREOS_PRIVATE_IPV4=$private_ipv4
+
+- path: /etc/ssh/sshd_config
+  permissions: 0600
+  owner: root:root
+  content: |
+    # Use most defaults for sshd configuration.
+    UsePrivilegeSeparation sandbox
+    Subsystem sftp internal-sftp
+    PermitRootLogin no
+    PasswordAuthentication no
+    ChallengeResponseAuthentication no
+
+coreos:
+  update:
+    reboot-strategy: off
+
+  units:
+    # タイムゾーンを設定
+    - name: timezone.service
+      command: start
+      content: |
+        [Unit]
+        Description=timezone
+        [Service]
+        Type=oneshot
+        RemainAfterExit=yes
+        ExecStart=/usr/bin/ln -sf ../usr/share/zoneinfo/Japan /etc/localtime
+

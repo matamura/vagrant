@@ -1,0 +1,18 @@
+- name: set docker config (root)
+  become: True
+  file: path=/root/.docker state=directory mode=0700
+
+- name: copy docker config (root)
+  become: True
+  template: src=../template/config.json.j2 dest=/root/.docker/config.json
+
+- name: set docker config
+  file: path=.docker state=directory mode=0700
+
+- name: docker cloud-config
+  become: True
+  template: src=../template/cloud-config.yml.j2 dest={{ ansible_coreos_cloud_config_path }}/cloud-config.yml.05-docker-tcp
+
+- name: copy docker config
+  template: src=../template/config.json.j2 dest=.docker/config.json
+

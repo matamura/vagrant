@@ -1,0 +1,29 @@
+coreos:
+  etcd2:
+    name: {{ inventory_hostname }}
+    discovery: __discovery_token_url__
+    advertise-client-urls: http://$public_ipv4:2379
+    initial-advertise-peer-urls: http://$private_ipv4:2380
+    listen-client-urls: http://0.0.0.0:2379
+    listen-peer-urls: http://$private_ipv4:2380
+    {{ ansible_etcd_proxy_option }}
+
+  units:
+    - name: etcd2.service
+      command: start
+      drop-ins:
+        - name: 01-start-after-network.conf
+          content: |
+            [Unit]
+            Requires=network-online.target multi-user.target
+            After=network-online.target multi-user.target
+
+            [Service]
+            Restart=always
+            RestartSec=10s
+
+        - name: 50-cleanup-data.conf
+          content: |
+            [Service]
+            # 古いメンバ情報が残ってる可能性があるので削除しておく
+            ExecStartPre=-/usr/bin/rmdir /var/lib/etcd2/member

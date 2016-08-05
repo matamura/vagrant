@@ -1,0 +1,35 @@
+[Unit]
+Description=Rails Storage Service
+Requires=consul.service
+After=consul.service
+
+[Service]
+TimeoutStartSec=0
+Restart=always
+RestartSec=5
+Environment="DISK_NAME=rails_datadir_%i"
+Environment="DISK_REPOSITORY=busybox:latest"
+ExecStartPre=/usr/bin/mkdir -p {{ ansible_rails_backup }}
+ExecStartPre=/usr/bin/mkdir -p {{ ansible_rails_srcdir }}
+ExecStartPre=/usr/bin/mkdir -p {{ ansible_rails_extdisk_rails }}
+ExecStartPre=-/usr/bin/docker kill ${DISK_NAME}
+ExecStartPre=-/usr/bin/docker rm ${DISK_NAME}
+ExecStartPre=/usr/bin/docker pull ${DISK_REPOSITORY}
+ExecStart=/usr/bin/docker run --name ${DISK_NAME} \
+                              -v /etc/localtime:/etc/localtime:ro {{ ansible_rails_opt_srcdir_rails }} \
+                              -v {{ ansible_rails_extdisk_rails }}:/var/lib/rails \
+                              -v {{ ansible_rails_tool }}:/tools \
+                               ${DISK_REPOSITORY} \
+                              /bin/sh -c 'while true; do sleep 1; done'
+ExecStartPost=/home/core/tools/check-container ${DISK_NAME} true
+ExecStartPost=-/usr/bin/docker run --rm --name ${DISK_NAME}_recovery --volumes-from ${DISK_NAME} \
+                                  -v {{ ansible_rails_backup }}:/backup \
+                                  ${DISK_REPOSITORY} /bin/sh -c 'cd /var/lib && tar xvf /backup/{{ ansible_rails_backupfile }}.tar'
+ExecStop=/usr/bin/docker stop ${DISK_NAME}
+ExecStopPost=/usr/bin/docker run --rm --name ${DISK_NAME}_backup --volumes-from ${DISK_NAME} \
+                         -v {{ ansible_rails_backup }}:/backup \
+                         ${DISK_REPOSITORY} /bin/sh -c 'cd /var/lib && tar cvf /backup/{{ ansible_rails_backupfile }}.tar rails'
+
+[X-Fleet]
+Conflicts=rails_datadir@%*.service
+MachineMetadata=role=app

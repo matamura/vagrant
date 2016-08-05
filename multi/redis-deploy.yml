@@ -1,0 +1,6 @@
+- name: Redis Cluster deploy
+  hosts: redis
+  gather_facts: true
+  roles:
+    - redis-deploy
+

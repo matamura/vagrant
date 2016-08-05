@@ -1,0 +1,4 @@
+ansible_ssh_user: core
+ansible_python_interpreter: "PATH=/home/core/bin:$PATH python"
+ansible_flannel_subnet: 10.1.0.0/16
+ansible_k8s_master_ip: 172.12.1.10

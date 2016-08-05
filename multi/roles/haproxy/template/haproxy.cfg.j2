@@ -1,0 +1,65 @@
+global
+        log 127.0.0.1   local0
+        log 127.0.0.1   local1 notice
+        #log loghost    local0 info
+        maxconn 4096
+        #daemon
+
+defaults
+        log     global
+        mode    tcp
+        option  redispatch
+        retries 3
+        maxconn 4096
+        timeout connect 3s
+        timeout client 30000
+        timeout server 30000
+
+resolvers consul
+        nameserver dns1 __consul_ipv4__:53
+        resolve_retries 3
+        timeout retry 1s
+        hold valid 10s
+
+
+frontend http-in
+        bind *:80
+        default_backend nginx
+
+backend nginx
+        server node01 node_1.nginx-80.service.consul:80 resolvers consul check port 80 inter 5000 fall 3 rise 2
+
+
+frontend mysqldb-in
+        bind *:3306
+        default_backend mysql_cluster
+
+backend mysql_cluster
+        mode tcp
+        balance leastconn
+        option tcpka
+        option mysql-check user check_user
+        server node01 node_1.mysql.service.consul:3306 resolvers consul check port 3306 inter 5000 fall 3 rise 2
+
+
+frontend redis-in
+        bind *:6379
+        default_backend redis_cluster
+
+backend redis_cluster
+        mode tcp
+        balance roundrobin
+        option tcp-check
+        tcp-check connect
+        tcp-check send PING\r\n
+        tcp-check expect string +PONG
+        tcp-check send info\ replication\r\n
+        tcp-check expect string role:master
+        tcp-check send QUIT\r\n
+        tcp-check expect string +OK
+        server node01 node_1.redis.service.consul:6379 resolvers consul check port 6379 inter 5000 fall 3 rise 2
+        server node02 node_2.redis.service.consul:6379 resolvers consul check port 6379 inter 5000 fall 3 rise 2
+        server node03 node_3.redis.service.consul:6379 resolvers consul check port 6379 inter 5000 fall 3 rise 2
+        server node04 node_4.redis.service.consul:6379 resolvers consul check port 6379 inter 5000 fall 3 rise 2
+        server node05 node_5.redis.service.consul:6379 resolvers consul check port 6379 inter 5000 fall 3 rise 2
+        server node06 node_6.redis.service.consul:6379 resolvers consul check port 6379 inter 5000 fall 3 rise 2

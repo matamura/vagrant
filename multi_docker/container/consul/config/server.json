@@ -1,0 +1,10 @@
+{
+  "ui": true,
+  "ports": {
+    "dns": 53
+  },
+  "dns_config": {
+    "allow_stale": false
+  },
+  "recursor": "8.8.8.8"
+}

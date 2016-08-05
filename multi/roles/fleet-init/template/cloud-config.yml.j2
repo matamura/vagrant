@@ -1,0 +1,25 @@
+
+coreos:
+  fleet:
+    public_ip: $public_ipv4
+    etcd-servers: http://0.0.0.0:2379
+    metadata: "{{ ansible_fleet_metadata }}"
+
+  units:
+    - name: fleet.service
+      command: start
+      drop-ins:
+        - name: 10-restart.conf
+          content: |
+            [Unit]
+            Description=fleet daemon
+
+            After=etcd2.service
+
+            Wants=fleet.socket
+            After=fleet.socket
+
+            [Service]
+            Restart=always
+            RestartSec=10s
+

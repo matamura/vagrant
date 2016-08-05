@@ -1,0 +1,21 @@
+- name: Remove old cloud-config.yml
+  become: true
+  raw: rm -f {{ ansible_coreos_cloud_config_path }}/{{ ansible_coreos_cloud_config_userdata }}
+
+# 分割されたcloud-configをマージしてcloud-config.ymlを作成
+- name: Concat cloud-config parts
+  become: true
+  raw: cat {{ ansible_coreos_cloud_config_path }}/cloud-config.yml.* >> {{ ansible_coreos_cloud_config_path }}/{{ ansible_coreos_cloud_config_userdata }}
+
+
+
+# 各サーバーのIPアドレスに変換
+- name: Assign environment data by host
+  become: True
+  script: assign_ipv4addr.sh {{ ansible_coreos_cloud_config_path }} {{ ansible_coreos_cloud_config_userdata }} {{ ansible_ssh_host }}
+
+# cloud-configを読み込み
+- name: Reloading cloud-config
+  become: True
+  command: /usr/bin/coreos-cloudinit --from-file={{ ansible_coreos_cloud_config_path }}/{{ ansible_coreos_cloud_config_userdata }}
+

@@ -1,0 +1,48 @@
+- name: Create rails Services (templates)
+  file: path=services/rails/templates state=directory mode=0755
+
+- name: Create rails Services (instances)
+  file: path=services/rails/instances state=directory mode=0755
+
+- name: Create rails Services (static)
+  file: path=services/rails/static state=directory mode=0755
+
+- name: Create rails Services (tools)
+  file: path=services/rails/tools state=directory mode=0755
+
+- name: Create rails Services (conf)
+  file: path=services/rails/conf.d state=directory mode=0755
+
+- name: Copy railsctl
+  copy: src=../files/railsctl dest={{ ansible_env.HOME }}/services/rails/tools/ mode=0755
+
+- name: Transfer rails cloud-config
+  become: True
+  template: src=../template/rails@.service.j2 dest=services/rails/templates/rails@.service
+
+- name: Transfer rails storage service settings
+  template: src=../template/rails_datadir@.service.j2 dest=services/rails/templates/rails_datadir@.service
+
+- name: Copy shells (set_env)
+  sudo: yes
+  copy: src=../template/set_env dest=/home/core/tools/ mode=0755
+
+
+- name: Create rails datadir service instances
+  file: src={{ ansible_env.HOME }}/services/rails/templates/rails_datadir@.service dest={{ ansible_env.HOME }}/services/rails/instances/rails_datadir@{{ item }}.service state=link
+  with_sequence: start=1 end={{ ansible_app_cluster_num }}
+
+
+- name: Create rails service instances
+  file: src={{ ansible_env.HOME }}/services/rails/templates/rails@.service dest={{ ansible_env.HOME }}/services/rails/instances/rails@{{ item }}.service state=link
+  with_sequence: start=1 end={{ ansible_app_cluster_num }}
+
+
+#- name: Enable rails.service
+#  become: True
+#  raw: systemctl enable rails
+
+#- name: Starting rails.service
+#  become: True
+#  raw: systemctl start rails
+

@@ -1,0 +1,18 @@
+[Unit]
+Description=rails Service
+
+Requires=rails_datadir@%i.service
+Requires=consul.service
+After=rails_datadir@%i.service
+After=consul.service
+
+
+[Service]
+TimeoutStartSec=0
+Restart=always
+RestartSec=5
+ExecStart=/home/core/services/rails/tools/railsctl start %i
+ExecStop=/home/core/services/rails/tools/railsctl down %i
+
+[X-Fleet]
+MachineMetadata=role=app

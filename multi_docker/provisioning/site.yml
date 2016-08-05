@@ -1,0 +1,5 @@
+- name: setting rails to server
+  hosts: multi_docker_server
+  user: vagrant
+  sudo: yes
+  roles:

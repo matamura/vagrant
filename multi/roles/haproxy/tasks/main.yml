@@ -1,0 +1,32 @@
+- name: Create HAProxy Services (templates)
+  file: path=services/haproxy/templates state=directory mode=0755
+
+- name: Create HAProxy Services (instances)
+  file: path=services/haproxy/instances state=directory mode=0755
+
+- name: Create HAProxy Services (static)
+  file: path=services/haproxy/static state=directory mode=0755
+
+- name: Create HAProxy Services (tools)
+  file: path=services/haproxy/tools state=directory mode=0755
+
+- name: Create HAProxy Services (conf)
+  file: path=services/haproxy/conf.d state=directory mode=0755
+
+- name: Copy haproxyctl
+  copy: src=../files/haproxyctl dest={{ ansible_env.HOME }}/services/haproxy/tools/ mode=0755
+
+- name: Transfer HAProxy config template
+  template: src=../template/haproxy.cfg.j2 dest={{ ansible_env.HOME }}/services/haproxy/conf.d/haproxy.cfg.j2
+
+- name: Transfer service template
+  become: True
+  template: src=../template/haproxy@.service.j2 dest={{ ansible_env.HOME }}/services/haproxy/templates/haproxy@.service
+
+- name: Get deploy targets
+  shell: "{{ ansible_env.HOME }}/tools/count-fleet-metadata 'role=admin, role=app, role=batch'"
+  register: deploy_num
+
+- name: Duplicate service instances
+  file: src={{ ansible_env.HOME }}/services/haproxy/templates/haproxy@.service dest={{ ansible_env.HOME }}/services/haproxy/instances/haproxy@{{ item }}.service state=link
+  with_sequence: start=1 end={{ deploy_num.stdout }}

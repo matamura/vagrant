@@ -1,0 +1,1 @@
+{"rsync":{"/srcdir/rails_datadir_1":{"rsync__exclude":[".git/","/vendor/bundle/","tmp/","/log/",".bundle/"],"mount_options":["dmode=777","fmode=755"],"guestpath":"/srcdir/rails_datadir_1","hostpath":"/Users/tamuramachiko/projects/to_project/src","disabled":false,"__vagrantfile":true,"exclude":[".git/","/vendor/bundle/","tmp/","/log/",".bundle/"],"owner":"core","group":"core"}}}

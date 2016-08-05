@@ -1,0 +1,13 @@
+- name: Deploy HAProxy
+  hosts: haproxy
+  gather_facts: true
+  tasks:
+    - name: Starting HAProxy service on clusters via fleet
+      raw: fleetctl start {{ ansible_env.HOME }}/services/haproxy/instances/haproxy@*
+
+- name: Initialize...
+  hosts: haproxy
+  gather_facts: true
+  tasks:
+    - name: Wait for start the haproxy(internal_lb)
+      raw: "{{ ansible_env.HOME }}/tools/check-container internal_lb true"

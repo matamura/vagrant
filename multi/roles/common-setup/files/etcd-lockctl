@@ -1,0 +1,71 @@
+#!/bin/sh
+
+# etcdを利用してロックを提供する
+
+command_type=$1
+etcd_key_lockid=$2
+sleep_time=${3:-1}
+
+
+function lock() {
+  # 排他制御
+  # etcdにロックの仕組みが見当たらない！？
+  # ディレクトリを作成してみて可能かどうかで判定する（古典的ロック）
+  ret=$(/usr/bin/etcdctl mkdir ${etcd_key_lockid} 2> /dev/null; echo $?)
+  if [ $ret -ne 0 ]; then
+    while [ $ret -ne 0 ];
+    do
+      echo "lock waits..."
+      sleep ${sleep_time}
+      ret=$(/usr/bin/etcdctl mkdir ${etcd_key_lockid} 2> /dev/null; echo $?)
+    done
+  fi
+
+}
+
+
+function comp() {
+   /usr/bin/etcdctl mkdir ${etcd_key_lockid} 2> /dev/null
+}
+
+
+
+function comp_check() {
+  # 排他制御
+  # etcdにロックの仕組みが見当たらない！？
+  # ディレクトリを作成してみて可能かどうかで判定する（古典的ロック）
+
+  ret=$(/usr/bin/etcdctl rmdir ${etcd_key_lockid} 2> /dev/null; echo $?)
+  if [ $ret -ne 0 ]; then
+    while [ $ret -ne 0 ];
+    do
+      echo "lock waits..."
+      sleep ${sleep_time}
+      ret=$(/usr/bin/etcdctl rmdir ${etcd_key_lockid} 2> /dev/null; echo $?)
+    done
+  fi
+
+}
+
+function unlock() {
+  # ロック解除
+  /usr/bin/etcdctl rmdir ${etcd_key_lockid} 2> /dev/null
+}
+
+
+if [ "${command_type}" == "lock" ]; then
+  lock
+  echo "locked."
+
+elif [ "${command_type}" == "unlock" ]; then
+  unlock
+  echo "unlocked."
+elif [ "${command_type}" == "comp_check" ]; then
+  comp_check
+  echo "comp_check."
+elif [ "${command_type}" == "comp" ]; then
+  comp
+  echo "comp."
+fi
+
+

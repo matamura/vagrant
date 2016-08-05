@@ -1,0 +1,15 @@
+- name: consul-master setup
+  hosts: cluster-admin
+  gather_facts: true
+  roles:
+    - consul-bootstrap
+    - consul-sync
+
+- name: consul-proxy setup
+  hosts: cluster-proxy
+  gather_facts: true
+  roles:
+    - consul-bootstrap
+    - consul-sync
+
+

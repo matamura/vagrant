@@ -1,0 +1,18 @@
+[Unit]
+Description=Redis Cluster Service
+Requires=redis_datadir@%i.service
+Requires=consul.service
+After=redis_datadir@%i.service
+After=consul.service
+
+[Service]
+TimeoutStartSec=0
+Restart=always
+RestartSec=5
+ExecStartPre=/home/core/services/redis/tools/redisctl init {{ ansible_redis_masters }} {{ ansible_redis_replicas }} %i 6379 {{ ansible_redis_masters + (ansible_redis_masters * ansible_redis_replicas)}}
+ExecStart=/home/core/services/redis/tools/redisctl start {{ ansible_redis_masters }} {{ ansible_redis_replicas }} %i 6379
+ExecStop=/home/core/services/redis/tools/redisctl down {{ ansible_redis_masters }} {{ ansible_redis_replicas }} %i
+
+[X-Fleet]
+MachineMetadata=role=redis
+{{ ansible_redis_x_fleet }}

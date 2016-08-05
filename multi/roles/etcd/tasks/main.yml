@@ -1,0 +1,9 @@
+- name: Transfer etcd cloud-config
+  become: True
+  template: src=/tmp/cloud-config.yml.etcd.j2 dest={{ ansible_coreos_cloud_config_path }}/cloud-config.yml.02-etcd
+
+# 古いメンバ情報が残ってる可能性があるので削除しておく
+- name: Remove etcd data dir
+  become: True
+  raw: rm -rf /var/lib/etcd/*
+

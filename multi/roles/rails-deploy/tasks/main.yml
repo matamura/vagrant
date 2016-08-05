@@ -1,0 +1,5 @@
+- name: Starting rails datadir service on clusters via fleet
+  raw: fleetctl start {{ ansible_env.HOME }}/services/rails/instances/rails_datadir@*
+
+- name: Starting rails service on clusters via fleet
+  raw: fleetctl start {{ ansible_env.HOME }}/services/rails/instances/rails@*

@@ -1,0 +1,14 @@
+#!/bin/sh
+
+BaseDir=$(cd "$(dirname "$0")"; pwd)
+
+ContainerName=$1
+EtcdKey=$2
+
+${BaseDir}/check-container ${ContainerName} true
+
+InspectKey=".NetworkSettings.IPAddress"
+IP=$(/usr/bin/docker inspect --format="{{ ${InspectKey} }}" ${ContainerName})
+/usr/bin/etcdctl set ${EtcdKey} ${IP}
+
+echo "Ready ${ContainerName} IP ${IP}"

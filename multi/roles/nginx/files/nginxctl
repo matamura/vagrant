@@ -1,0 +1,139 @@
+#!/bin/sh
+
+CMD=$1
+NODE=$2
+
+
+
+APP_NAME=nginx_${NODE}
+CONSUL_CONTAINER_NAME=consul
+SERVICE_NAME=nginx
+SERVICE_TAGS=node_${NODE}
+
+NGINX_NAME=nginx_${NODE}
+NGINX_DISK_NAME=nginx_datadir_${NODE}
+NGINX_REPOSITORY=matamura/to_project:nginx
+
+ETCD_KEY_NODES=/to-pj/nginx/nodes
+
+ETCD_RAILS_LOCK_ID=/to-pj/rails/lock
+
+
+function get_dns() {
+  # etcdにredisのDNS名を記録
+  DNS_NAME=${SERVICE_TAGS}.${SERVICE_NAME}.service.consul
+  echo ${DNS_NAME}
+}
+
+function wait_for_ready_to_nginx() {
+  # 起動待ち
+  /home/core/tools/check-container ${APP_NAME} true
+
+  true
+}
+
+
+# LBに追加登録する
+function add_to_lb() {
+  cid=$(/usr/bin/etcdctl get ${ETCD_KEY_NODES}/${SERVICE_TAGS}_id)
+  ipv4=$(/usr/bin/etcdctl get ${ETCD_KEY_NODES}/${SERVICE_TAGS}_ipv4)
+}
+
+# LBから削除する
+function delete_from_lb() {
+  cid=$(/usr/bin/etcdctl get ${ETCD_KEY_NODES}/${SERVICE_TAGS}_id)
+  ipv4=$(/usr/bin/etcdctl get ${ETCD_KEY_NODES}/${SERVICE_TAGS}_ipv4)
+}
+
+# クリーンナップ処理
+function cleanup() {
+  # 起動しているコンテナのIPを取得する
+  nodes=$(etcdctl ls ${ETCD_KEY_NODES})
+
+  for key in $nodes
+  do
+    /usr/bin/etcdctl rm ${key} 2> /dev/null
+    echo "remove key ${key} in etcd"
+  done
+
+  /usr/bin/etcdctl rmdir ${ETCD_KEY_C2NODES} 2> /dev/null
+  echo "remove directory ${ETCD_KEY_C2NODES}"
+}
+
+
+# 1) アプリケーションを起動する
+# 2) ロードバランサに登録しているIPを更新する
+function start() {
+
+
+  # railsの初期化が終わってから起動する
+  /home/core/tools/etcd-lockctl lock ${ETCD_RAILS_LOCK_ID}
+  /home/core/tools/etcd-lockctl unlock ${ETCD_RAILS_LOCK_ID}
+
+
+  /usr/bin/docker kill ${APP_NAME} 2> /dev/null
+  /usr/bin/docker rm ${APP_NAME} 2> /dev/null
+  # pull
+  /usr/bin/docker pull ${NGINX_REPOSITORY}
+
+  public_port=""
+
+
+  # コンテナを起動(Server起動)
+  container_id=$(/usr/bin/docker run -d --name ${APP_NAME} ${public_port} \
+                      --privileged \
+                      --dns `docker inspect --format="{{ .NetworkSettings.IPAddress }}" ${CONSUL_CONTAINER_NAME}` \
+                      --link ${CONSUL_CONTAINER_NAME}:${CONSUL_CONTAINER_NAME} \
+                      -e "SERVICE_NAME=${SERVICE_NAME}" \
+                      -e "SERVICE_TAGS=${SERVICE_TAGS}" \
+                      --volumes-from ${NGINX_DISK_NAME} \
+                      ${NGINX_REPOSITORY} \
+                      /bin/sh -c "while true; do sleep 1; done")
+
+
+
+  # LISTEN状態になるまで待機する
+  echo "Wait for ready to nginx..."
+  wait_for_ready_to_nginx
+  echo "Wait for ready to nginx...done."
+
+  ipv4=$(/usr/bin/docker inspect --format='{{ .NetworkSettings.IPAddress }}' ${container_id} 2> /dev/null)
+
+  # コンテナIDをIPを登録しておく
+  /usr/bin/etcdctl set ${ETCD_KEY_NODES}/${SERVICE_TAGS}_id ${container_id}
+  /usr/bin/etcdctl set ${ETCD_KEY_NODES}/${SERVICE_TAGS}_ipv4 ${ipv4}
+
+  # LBに登録する
+ #  add_to_lb
+
+  /usr/bin/docker exec -i ${NGINX_NAME} /nginx/start_server
+
+
+while true
+do
+  sleep 1
+done
+
+}
+
+
+function down() {
+
+  delete_from_lb
+
+  echo "Stopping nginx ${cid}"
+  /usr/bin/docker stop ${APP_NAME} 2> /dev/null
+  echo "Stopping nginx ${cid} done."
+
+  # コンテナIDをIPを削除
+  /usr/bin/etcdctl rm ${ETCD_KEY_NODES}/${SERVICE_TAGS}_id
+  /usr/bin/etcdctl rm ${ETCD_KEY_NODES}/${SERVICE_TAGS}_ipv4
+
+  exit 0;
+}
+
+
+case "${CMD}" in
+  "start" ) start ;;
+  "down" ) down new ;;
+esac

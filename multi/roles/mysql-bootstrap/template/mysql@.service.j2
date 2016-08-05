@@ -1,0 +1,15 @@
+[Unit]
+Description=Mysql Service
+Requires=mysql_datadir@%i.service
+After=mysql_datadir@%i.service
+
+[Service]
+TimeoutStartSec=0
+Restart=always
+RestartSec=5
+ExecStart=/home/core/services/mysql/tools/mysqlctl start %i
+ExecStop=/home/core/services/mysql/tools/mysqlctl down %i
+
+[X-Fleet]
+MachineMetadata=role=mysql
+{{ ansible_mysql_x_fleet }}

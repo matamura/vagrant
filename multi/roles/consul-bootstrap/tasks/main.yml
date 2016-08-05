@@ -1,0 +1,30 @@
+- name: Create Consul Services (templates)
+  file: path=services/consul/templates state=directory mode=0755
+
+- name: Create Consul Services (instances)
+  file: path=services/consul/instances state=directory mode=0755
+
+- name: Create Consul Services (static)
+  file: path=services/consul/static state=directory mode=0755
+
+- name: Create Consul Services (tools)
+  file: path=services/consul/tools state=directory mode=0755
+
+- name: Create Consul Services (conf)
+  file: path=services/consul/conf.d state=directory mode=0755
+
+- name: Copy consulctl
+  copy: src=../files/consulctl dest={{ ansible_env.HOME }}/services/consul/tools/ mode=0755
+
+- name: Transfer consul service
+  become: True
+  template: src=../template/consul.service.j2 dest=/etc/systemd/system/consul.service
+
+- name: Enable consul.service
+  become: True
+  raw: systemctl enable consul
+
+- name: Starting consul.service
+  become: True
+  raw: systemctl start consul
+

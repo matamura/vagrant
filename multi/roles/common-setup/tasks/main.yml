@@ -1,0 +1,51 @@
+- name: Check original cloud-config
+  become: True
+  stat: path={{ ansible_coreos_cloud_config_path }}/cloud-config.yml.00-default
+  register: org_cloud_config
+
+# バックアップを取っておく
+- name: Create original cloud-config
+  raw: sudo cp -pf {{ ansible_coreos_cloud_config_path }}/{{ ansible_coreos_cloud_config_userdata }} {{ ansible_coreos_cloud_config_path }}/cloud-config.yml.00-default
+  when: not org_cloud_config.stat.exists
+
+# coreosの基本設定のcloud-configを作成
+- name: Create default cloud-config
+  become: True
+  copy: src=../template/cloud-config.yml.j2 dest={{ ansible_coreos_cloud_config_path }}/cloud-config.yml.01-setup
+
+- name: Check service directory
+  stat: path={{ ansible_env.HOME }}/services
+  register: user_service_dir
+
+- name: Create directory for user services (Template)
+  file: path=services state=directory mode=0755
+  when: not user_service_dir.stat.exists
+
+
+- name: change owner of services dir
+  sudo: yes
+  command: chgrp -R core services
+
+- name: change owner of services dir
+  sudo: yes
+  command: chown -R core services
+
+
+- name: Create directory for tools
+  file: path=tools state=directory mode=0755
+
+- name: Cleanup tools
+  raw: "rm -f /home/core/tools/*"
+
+
+- name: Copy shells (etcd-lockctl)
+  copy: src=../files/etcd-lockctl dest=/home/core/tools/ mode=0755
+
+- name: Copy shells (check-container)
+  copy: src=../files/check-container dest=/home/core/tools/ mode=0755
+
+- name: Copy shells (set-container-ip)
+  copy: src=../files/set-container-ip dest=/home/core/tools/ mode=0755
+
+- name: Copy shells (count-fleet-metadata)
+  copy: src=../files/count-fleet-metadata dest=/home/core/tools/ mode=0755

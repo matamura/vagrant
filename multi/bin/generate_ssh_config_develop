@@ -1,0 +1,27 @@
+#!/bin/bash
+
+cd `dirname $0`
+
+
+ssh_key_dir=`pwd`/../ssh-keys/develop/id_rsa
+
+cat > ../ansible.cfg << EOF
+
+[ssh_connection]
+ssh_args = -o ControlMaster=auto -o ControlPersist=60s -F ssh.config
+EOF
+
+
+
+cat > ../ssh.config << EOF
+Host *
+    User core
+    UserKnownHostsFile /dev/null
+    StrictHostKeyChecking no
+    PasswordAuthentication no
+    IdentityFile ${ssh_key_dir}
+    IdentitiesOnly yes
+    LogLevel FATAL
+EOF
+
+chmod 600 ${ssh_key_dir}

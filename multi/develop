@@ -1,0 +1,60 @@
+  ## inventory file for vagrant machines
+multi-cluster-admin-01 ansible_ssh_host=172.16.1.10
+multi-cluster-admin-02 ansible_ssh_host=172.16.1.11
+multi-cluster-admin-03 ansible_ssh_host=172.16.1.12
+multi-admin-01 ansible_ssh_host=172.16.1.15
+multi-app-01 ansible_ssh_host=172.16.1.20
+multi-batch-01 ansible_ssh_host=172.16.1.40
+multi-db-redis-01 ansible_ssh_host=172.16.1.60
+multi-db-mysql-01 ansible_ssh_host=172.16.1.70
+
+
+# CoreOS common settings
+[coreos]
+multi-cluster-admin-01
+multi-cluster-admin-02
+multi-cluster-admin-03
+multi-admin-01
+#multi-batch-01
+multi-app-01
+multi-db-redis-01
+multi-db-mysql-01
+
+
+[cluster-admin]
+multi-cluster-admin-01
+multi-cluster-admin-02
+multi-cluster-admin-03
+
+
+[cluster-proxy]
+multi-admin-01
+multi-app-01
+#multi-batch-01
+multi-db-redis-01
+multi-db-mysql-01
+
+
+# mysql role
+[mysql]
+multi-db-mysql-01
+
+# redis role
+[redis]
+multi-db-redis-01
+
+
+# app role
+[app]
+multi-app-01
+
+
+# admin role
+[admin]
+multi-admin-01
+
+
+[haproxy]
+multi-admin-01
+multi-app-01
+#multi-batch-01

@@ -1,0 +1,7 @@
+# etcd proxyオプション
+ansible_etcd_proxy_option: "proxy: on"
+
+
+# consulのタイプ
+ansible_consul_cluster_type: proxy
+ansible_consul_cluster_num: -1

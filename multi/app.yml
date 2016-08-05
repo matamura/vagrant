@@ -1,0 +1,9 @@
+- name:  application server setup
+  hosts: app
+  gather_facts: true
+  roles:
+    - nginx
+    - rails
+
+
+
